@@ -3,8 +3,7 @@
 use game::{Board, Move};
 
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap, VecDeque};
-use std::iter::FromIterator;
+use std::collections::{BinaryHeap, HashMap};
 
 /// Runs A* search to find a path from the `start` to the `goal`, if it exists.
 ///
@@ -56,7 +55,7 @@ fn build_path(movements: &HashMap<Board, Option<Move>>, ending: &Board,
               length: usize)
               -> Vec<Move>
 {
-    let mut path = VecDeque::with_capacity(length);
+    let mut path = Vec::with_capacity(length);
     let movement = match movements.get(ending)
         .expect("Surely the ending configuration has a path to it.") {
             &None => /* special case: the goal is the start, return the trivial
@@ -65,18 +64,19 @@ fn build_path(movements: &HashMap<Board, Option<Move>>, ending: &Board,
         };
 
 
-    path.push_back(movement);
+    path.push(movement);
 
     let mut cursor = ending.update(movement.reverse())
         .expect("We already found this path");
 
     while let Some(&Some(movement)) = movements.get(&cursor) {
-        path.push_back(movement);
+        path.push(movement);
         cursor = cursor.update(movement.reverse())
             .expect("We already found this path");
     }
 
-    Vec::from_iter(path.into_iter().rev())
+    path.reverse();
+    path
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -113,7 +113,7 @@ mod tests {
     use game::Move::*;
 
     fn goal() -> Board {
-        Board::unsafe_from_array([1, 2, 3, 4, 5, 6, 7, 8, 0])
+        Board::from_vec(vec![1, 2, 3, 4, 5, 6, 7, 8, 0]).unwrap()
     }
 
     fn moves() -> [Move; 4] {
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn board_1() {
-        let start = Board::from_array([1, 2, 3, 4, 0, 5, 7, 8, 6]).unwrap();
+        let start = Board::from_vec(vec![1, 2, 3, 4, 0, 5, 7, 8, 6]).unwrap();
         let solution = vec![Right, Down];
 
         assert_eq!(Some(solution), a_star(start, &goal(), &moves()));
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn board_2() {
-        let start = Board::from_array([1, 2, 3, 7, 4, 5, 0, 8, 6]).unwrap();
+        let start = Board::from_vec(vec![1, 2, 3, 7, 4, 5, 0, 8, 6]).unwrap();
         let solution = vec![Up, Right, Right, Down];
 
         assert_eq!(Some(solution), a_star(start, &goal(), &moves()));
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn board_3() {
-        let start = Board::from_array([1, 2, 3, 4, 8, 0, 7, 6, 5]).unwrap();
+        let start = Board::from_vec(vec![1, 2, 3, 4, 8, 0, 7, 6, 5]).unwrap();
         let solution = vec![Down, Left, Up, Right, Down];
 
         assert_eq!(Some(solution), a_star(start, &goal(), &moves()));
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn board_4() {
-        let start = Board::from_array([4, 1, 3, 7, 2, 6, 5, 8, 0]).unwrap();
+        let start = Board::from_vec(vec![4, 1, 3, 7, 2, 6, 5, 8, 0]).unwrap();
         let solution = vec![Left, Left, Up, Up, Right, Down, Down, Right];
 
         assert_eq!(Some(solution), a_star(start, &goal(), &moves()));
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn board_5() {
-        let start = Board::from_array([1, 6, 2, 5, 3, 0, 4, 7, 8]).unwrap();
+        let start = Board::from_vec(vec![1, 6, 2, 5, 3, 0, 4, 7, 8]).unwrap();
         let solution = vec![Left, Up, Right, Down, Left, Left, Down, Right,
                             Right];
 
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn board_6() {
-        let start = Board::from_array([5, 1, 2, 6, 3, 0, 4, 7, 8]).unwrap();
+        let start = Board::from_vec(vec![5, 1, 2, 6, 3, 0, 4, 7, 8]).unwrap();
         let solution = vec![Left, Left, Up, Right, Right, Down, Left, Left,
                             Down, Right, Right];
 
@@ -174,7 +174,7 @@ mod tests {
     #[ignore]
     // This doesn't appear to be the only solution!
     fn board_7() {
-        let start = Board::from_array([1, 2, 6, 3, 5, 0, 4, 7, 8]).unwrap();
+        let start = Board::from_vec(vec![1, 2, 6, 3, 5, 0, 4, 7, 8]).unwrap();
         let solution = vec![Up, Left, Down, Left, Down, Right, Right, Up, Left,
                             Up, Right, Down, Down];
         let goal_board = goal();

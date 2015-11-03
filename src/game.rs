@@ -1,32 +1,33 @@
 //! Representations and manipulations of the game.
 
 use std::fmt::{self, Formatter, Display};
+use std::u8;
 
-/// A 3x3 game board
+/// A game board
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Board {
     /// The game board, as a row-major array. The “hole” is represented as `0`,
-    /// and filled-in cells should be numbered `1` through `8`.
-    cells: [u8; 9]
-}
-
-/// Converts from 2D coordinates in the grid to 1D indices into the board.
-fn to_linear_index(ix: usize, iy: usize) -> usize {
-    iy * 3 + ix
-}
-
-/// Converts from a 1D index into the board to a pair of `(x-index, y-index)`.
-fn from_linear_index(i: usize) -> (usize, usize) {
-    (i % 3, i / 3)
+    /// and filled-in cells should be numbered `1` through whatever.
+    cells: Vec<u8>,
+    side: usize
 }
 
 impl Display for Board {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let cells = &self.cells;
-        write!(f, "{} {} {}
-{} {} {}
-{} {} {}", cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], cells[6],
-               cells[7], cells[8])
+        let mut printed = 0;
+
+        for cell in self.cells.iter() {
+            printed += 1;
+            if printed == self.side {
+                try!(write!(f, "{}\n", cell));
+                printed = 0;
+            }
+            else {
+                try!(write!(f, "{} ", cell));
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -55,52 +56,85 @@ impl Move {
         }
     }
 }
+/// Computes the length of a board’s size, or returns `None` if the number of
+/// cells is not a square number.
+///
+/// Not particularly optimized, I don’t care.
+fn board_size(num_cells: usize) -> Option<usize> {
+    let root = (num_cells as f64).sqrt();
+
+    if (root * root) as usize != num_cells {
+        None
+    }
+    else {
+        Some(root as usize)
+    }
+}
 
 impl Board {
-    /// Constructs a new `Board` by consuming the given array.
-    /// The array must contain all integers from 0 to 8 exactly once, or `None`
-    /// will be returned.
-    pub fn from_array(cells: [u8; 9]) -> Option<Self> {
-        let mut seen = [false; 9];
+    /// Constructs a new `Board` by consuming the given vector.
+    ///
+    /// The vector must be a square number of elements, and the first `len` nats
+    /// must appear exactly once.
+    pub fn from_vec(cells: Vec<u8>) -> Option<Self> {
+        if cells.len() > u8::MAX as usize {
+            // That is a huge vector.
+            return None;
+        }
 
-        for &cell in cells.into_iter() {
-            if cell > 8 {
+        let size = match board_size(cells.len()) {
+            None => return None,
+            Some(s) => s
+        } as u8;
+
+        let mut seen = vec![false; cells.len()];
+
+        for &cell in cells.iter() {
+            if cell >= cells.len() as u8 {
                 return None;
             }
 
             seen[cell as usize] = true;
         }
 
-        if seen.into_iter().all(|&b| b) {
-            Some(Board{ cells: cells })
+        if seen.into_iter().all(|b| b) {
+            Some(Board{ cells: cells, side: size as usize})
         }
         else {
             None
         }
     }
 
-    /// Builds a new board from the given array, without checking to see if its
-    /// prerequesite is met. Not tagged `unsafe` because there’s no *memory*
-    /// unsafety, but it will absolutely violate application constraints; this 
-    /// is why it’s only used in testing, to build expected results.
-    #[cfg(test)]
-    pub fn unsafe_from_array(cells: [u8; 9]) -> Self {
-        Board { cells: cells }
+    /// Returns the length of one side of the puzzle board
+    pub fn side(&self) -> usize {
+        self.side
     }
+
+    /// Converts from 2D coordinates in the grid to 1D indices into the board.
+    fn to_linear_index(&self, ix: usize, iy: usize) -> usize {
+        iy * self.side + ix
+    }
+
+    /// Converts from a 1D index into the board to a pair of
+    /// `(x-index, y-index)`.
+    fn from_linear_index(&self, i: usize) -> (usize, usize) {
+        (i % self.side, i / 3)
+    }
+
 
     /// Finds the 2D index of the hole, with the top left cell as `(0, 0)`.
     /// Panics if the hole isn’t found.
     fn hole_position(&self) -> (usize, usize) {
         let mut indices = (0, 0);
 
-        for &cell in self.cells.into_iter() {
+        for &cell in self.cells.iter() {
             let (ix, iy) = indices;
 
             if cell == 0 {
                 return indices;
             }
 
-            if ix == 2 {
+            if ix == self.side - 1 {
                 indices = (0, iy + 1);
             }
             else {
@@ -134,8 +168,8 @@ impl Board {
     pub fn estimate_cost(&self, goal: &Self) -> usize {
         let mut acc = 0;
 
-        for tile in (1 .. 8) {
-            acc += self.tile_distance(goal, tile)
+        for tile in (1 .. self.cells.len() - 1) {
+            acc += self.tile_distance(goal, tile as u8)
         }
 
         acc
@@ -152,7 +186,7 @@ impl Board {
     }
 
     fn tile_index(&self, tile: u8) -> (usize, usize) {
-        from_linear_index(
+        self.from_linear_index(
             self.cells.iter().enumerate().filter(|&(_, &cell)| cell == tile)
                 .next()
                 .expect(&format!("The board didn’t have a {} tile", tile))
@@ -173,21 +207,21 @@ impl Board {
                 }
 
                 let mut new_cells = self.cells.clone();
-                new_cells.swap(to_linear_index(ix, iy),
-                               to_linear_index(ix - 1, iy));
+                new_cells.swap(self.to_linear_index(ix, iy),
+                               self.to_linear_index(ix - 1, iy));
 
-                Some(Board { cells: new_cells })
+                Some(Board { cells: new_cells, side: self.side })
             },
             Move::Right => {
-                if ix == 2 {
+                if ix == self.side - 1 {
                     return None;
                 }
 
                 let mut new_cells = self.cells.clone();
-                new_cells.swap(to_linear_index(ix, iy),
-                               to_linear_index(ix + 1, iy));
+                new_cells.swap(self.to_linear_index(ix, iy),
+                               self.to_linear_index(ix + 1, iy));
 
-                Some(Board { cells: new_cells })
+                Some(Board { cells: new_cells, side: self.side })
             },
             Move::Up => {
                 if iy == 0 {
@@ -195,21 +229,21 @@ impl Board {
                 }
 
                 let mut new_cells = self.cells.clone();
-                new_cells.swap(to_linear_index(ix, iy),
-                               to_linear_index(ix, iy - 1));
+                new_cells.swap(self.to_linear_index(ix, iy),
+                               self.to_linear_index(ix, iy - 1));
 
-                Some(Board { cells: new_cells })
+                Some(Board { cells: new_cells, side: self.side })
             },
             Move::Down => {
-                if iy == 2 {
+                if iy == self.side - 1 {
                     return None;
                 }
 
                 let mut new_cells = self.cells.clone();
-                new_cells.swap(to_linear_index(ix, iy),
-                               to_linear_index(ix, iy + 1));
+                new_cells.swap(self.to_linear_index(ix, iy),
+                               self.to_linear_index(ix, iy + 1));
 
-                Some(Board { cells: new_cells })
+                Some(Board { cells: new_cells, side: self.side })
             }
         }
     }
@@ -220,7 +254,7 @@ mod test {
     use super::*;
 
     fn trivial_board() -> Board {
-        Board::unsafe_from_array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+        Board::from_vec(vec![0, 1, 2, 3, 4, 5, 6, 7, 8]).unwrap()
     }
 
     #[test]
@@ -228,19 +262,19 @@ mod test {
         let expected = trivial_board();
 
         assert_eq!(Some(expected),
-                   Board::from_array([0, 1, 2, 3, 4, 5, 6, 7, 8]));
+                   Board::from_vec(vec![0, 1, 2, 3, 4, 5, 6, 7, 8]));
     }
 
     #[test]
     fn bad_boards_do_not_build() {
-        assert_eq!(None, Board::from_array([1; 9]));
-        assert_eq!(None, Board::from_array([0; 9]));
-        assert_eq!(None, Board::from_array([1, 2, 3, 4, 5, 6, 5, 7, 0]));
+        assert_eq!(None, Board::from_vec(vec![1; 9]));
+        assert_eq!(None, Board::from_vec(vec![0; 9]));
+        assert_eq!(None, Board::from_vec(vec![1, 2, 3, 4, 5, 6, 5, 7, 0]));
     }
 
     #[test]
     fn trivial_move_right() {
-        let expected = Board::unsafe_from_array([1, 0, 2, 3, 4, 5, 6, 7, 8]);
+        let expected = Board::from_vec(vec![1, 0, 2, 3, 4, 5, 6, 7, 8]).unwrap();
 
         assert_eq!(Some(expected),
                    trivial_board().update(Move::Right));
@@ -253,7 +287,7 @@ mod test {
         assert_eq!(None, upper_left.update(Move::Left));
         assert_eq!(None, upper_left.update(Move::Up));
 
-        let lower_right = Board::unsafe_from_array([1, 2, 3, 4, 5, 6, 7, 8, 0]);
+        let lower_right = Board::from_vec(vec![1, 2, 3, 4, 5, 6, 7, 8, 0]).unwrap();
         assert_eq!(None, lower_right.update(Move::Right));
         assert_eq!(None, lower_right.update(Move::Down));
     }
