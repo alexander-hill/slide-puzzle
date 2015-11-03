@@ -1,0 +1,4 @@
+[package]
+name = "slide-puzzle"
+version = "0.1.0"
+authors = ["Alex Hill <alexander.d.hill.89@gmail.com>"]
