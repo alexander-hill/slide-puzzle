@@ -42,7 +42,7 @@ pub enum Move {
     Down
 }
 
-pub const all_moves: [Move; 4] = [Move::Left, Move::Right, Move::Up, Move::Down];
+pub const ALL_MOVES: [Move; 4] = [Move::Left, Move::Right, Move::Up, Move::Down];
 
 impl Move {
     /// Returns the opposite move
