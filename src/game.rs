@@ -118,7 +118,7 @@ impl Board {
     /// Converts from a 1D index into the board to a pair of
     /// `(x-index, y-index)`.
     fn from_linear_index(&self, i: usize) -> (usize, usize) {
-        (i % self.side, i / 3)
+        (i % self.side, i / self.side)
     }
 
 

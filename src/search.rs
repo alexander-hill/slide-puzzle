@@ -182,4 +182,15 @@ mod tests {
 
         assert_eq!(Some(solution), mine);
     }
+
+    #[test]
+    fn big_board() {
+        let start = Board::from_vec(vec![1, 2, 0, 3, 4, 9, 6, 7, 8, 10, 5, 11,
+                                         12, 13, 14, 15]).unwrap();
+        let goal = Board::from_vec(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+                                        12, 13, 14, 15]).unwrap();
+        let solution = vec![Down, Down, Left, Up, Right, Up, Left, Left];
+
+        assert_eq!(Some(solution), a_star(start, &goal, &moves()));
+    }
 }
