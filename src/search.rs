@@ -106,7 +106,7 @@ impl<'a, T> PartialOrd for AstarNode<'a, T>
 
 #[cfg(test)]
 mod tests {
-    // These tests come from
+    // These tests mostly come from
     // <http://cs.cmu.edu/~adamchik/15-121/labs/HW-7%20Slide%20Puzzle/lab.html>
     use super::*;
     use game::{Board, Move};
@@ -170,8 +170,7 @@ mod tests {
         assert_eq!(Some(solution), a_star(start, &goal(), &moves()));
     }
 
-    #[test]
-    #[ignore]
+/*    #[test]
     // This doesn't appear to be the only solution!
     fn board_7() {
         let start = Board::from_vec(vec![1, 2, 6, 3, 5, 0, 4, 7, 8]).unwrap();
@@ -182,6 +181,7 @@ mod tests {
 
         assert_eq!(Some(solution), mine);
     }
+*/
 
     #[test]
     fn big_board() {

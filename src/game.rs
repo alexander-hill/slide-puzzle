@@ -31,7 +31,7 @@ impl Display for Board {
     }
 }
 
-/// The possible moves once can make.
+/// The possible moves one can make.
 ///
 /// `Move::Left` corresponds with swapping the board’s blank space with the
 ///  piece to its left, and so on.
@@ -56,6 +56,7 @@ impl Move {
         }
     }
 }
+
 /// Computes the length of a board’s size, or returns `None` if the number of
 /// cells is not a square number.
 ///
@@ -200,7 +201,7 @@ impl Board {
     pub fn update(&self, command: Move) -> Option<Board> {
         let (ix, iy) = self.hole_position();
 
-        match command {
+        let new_cells = match command {
             Move::Left => {
                 if ix == 0 {
                     return None;
@@ -210,7 +211,7 @@ impl Board {
                 new_cells.swap(self.to_linear_index(ix, iy),
                                self.to_linear_index(ix - 1, iy));
 
-                Some(Board { cells: new_cells, side: self.side })
+                new_cells
             },
             Move::Right => {
                 if ix == self.side - 1 {
@@ -221,7 +222,7 @@ impl Board {
                 new_cells.swap(self.to_linear_index(ix, iy),
                                self.to_linear_index(ix + 1, iy));
 
-                Some(Board { cells: new_cells, side: self.side })
+                new_cells
             },
             Move::Up => {
                 if iy == 0 {
@@ -232,7 +233,7 @@ impl Board {
                 new_cells.swap(self.to_linear_index(ix, iy),
                                self.to_linear_index(ix, iy - 1));
 
-                Some(Board { cells: new_cells, side: self.side })
+                new_cells
             },
             Move::Down => {
                 if iy == self.side - 1 {
@@ -243,9 +244,11 @@ impl Board {
                 new_cells.swap(self.to_linear_index(ix, iy),
                                self.to_linear_index(ix, iy + 1));
 
-                Some(Board { cells: new_cells, side: self.side })
+                new_cells
             }
-        }
+        };
+
+        Some(Board{ cells: new_cells, side: self.side })
     }
 }
 
